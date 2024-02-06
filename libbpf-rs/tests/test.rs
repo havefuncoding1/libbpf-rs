@@ -10,6 +10,7 @@ use std::os::fd::AsRawFd;
 use std::os::unix::io::AsFd;
 use std::path::Path;
 use std::path::PathBuf;
+use std::ptr::null;
 use std::slice;
 use std::sync::mpsc::channel;
 use std::time::Duration;
@@ -50,8 +51,16 @@ fn get_test_object_path(filename: &str) -> PathBuf {
 }
 
 pub fn open_test_object(filename: &str) -> OpenObject {
+    open_test_object_with_custom_btf(filename, None)
+}
+
+pub fn open_test_object_with_custom_btf(filename: &str, btfpath: Option<&str>) -> OpenObject {
     let obj_path = get_test_object_path(filename);
     let mut builder = ObjectBuilder::default();
+    if let Some(btfpath) = btfpath {
+        builder.btf_path(btfpath);
+    }
+
     // Invoke cargo with:
     //
     //     cargo test -- --nocapture
@@ -62,7 +71,11 @@ pub fn open_test_object(filename: &str) -> OpenObject {
 }
 
 pub fn get_test_object(filename: &str) -> Object {
-    open_test_object(filename)
+    get_test_object_with_custom_btf(filename, None)
+}
+
+pub fn get_test_object_with_custom_btf(filename: &str, btfpath: Option<&str>) -> Object {
+    open_test_object_with_custom_btf(filename, btfpath)
         .load()
         .expect("failed to load object")
 }
@@ -171,6 +184,15 @@ fn test_sudo_object_maps() {
     obj.map("start").expect("failed to find map");
     obj.map("events").expect("failed to find map");
     assert!(obj.map("asdf").is_none());
+}
+
+#[test]
+fn test_sudo_btf_path() {
+    // bump_rlimit_mlock();
+
+    let obj = get_test_object("runqslower.bpf.o");
+    print!("Terminating in 45 seconds ...");
+    std::thread::sleep(Duration::from_secs(45));
 }
 
 #[test]

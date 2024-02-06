@@ -144,6 +144,23 @@ impl ObjectBuilder {
         })
         .and_then(|ptr| unsafe { OpenObject::new(ptr) })
     }
+
+    /// Specifies custom BTF path to handle cases where vmlinux is not available
+    /// in target environment.
+    pub fn btf_path(&mut self, path: &str) -> &mut Self {
+        self.opts.btf_custom_path = CString::new(path).unwrap().into_raw();
+        self
+    }
+}
+
+impl Drop for ObjectBuilder {
+    fn drop(&mut self) {
+        unsafe {
+            if !self.opts.btf_custom_path.is_null() {
+                _ = CString::from_raw(self.opts.btf_custom_path as *mut std::os::raw::c_char);
+            }
+        }
+    }
 }
 
 /// Represents an opened (but not yet loaded) BPF object file.
