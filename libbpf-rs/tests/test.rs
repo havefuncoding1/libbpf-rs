@@ -10,11 +10,11 @@ use std::os::fd::AsRawFd;
 use std::os::unix::io::AsFd;
 use std::path::Path;
 use std::path::PathBuf;
-use std::ptr::null;
 use std::slice;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
+use libbpf_sys::btf_param;
 use nix::errno;
 use nix::unistd::close;
 use plain::Plain;
@@ -51,15 +51,14 @@ fn get_test_object_path(filename: &str) -> PathBuf {
 }
 
 pub fn open_test_object(filename: &str) -> OpenObject {
-    open_test_object_with_custom_btf(filename, None)
+    open_test_object_with_custom_btf(filename, "")
 }
 
-pub fn open_test_object_with_custom_btf(filename: &str, btfpath: Option<&str>) -> OpenObject {
+pub fn open_test_object_with_custom_btf(filename: &str, btfpath: &str) -> OpenObject {
     let obj_path = get_test_object_path(filename);
     let mut builder = ObjectBuilder::default();
-    if let Some(btfpath) = btfpath {
-        builder.btf_path(btfpath);
-    }
+    let path = PathBuf::from(btfpath);
+    builder.btf_path(path).expect("failed to configure btf path");
 
     // Invoke cargo with:
     //
@@ -71,10 +70,10 @@ pub fn open_test_object_with_custom_btf(filename: &str, btfpath: Option<&str>) -
 }
 
 pub fn get_test_object(filename: &str) -> Object {
-    get_test_object_with_custom_btf(filename, None)
+    get_test_object_with_custom_btf(filename, "")
 }
 
-pub fn get_test_object_with_custom_btf(filename: &str, btfpath: Option<&str>) -> Object {
+pub fn get_test_object_with_custom_btf(filename: &str, btfpath: &str) -> Object {
     open_test_object_with_custom_btf(filename, btfpath)
         .load()
         .expect("failed to load object")
@@ -190,9 +189,15 @@ fn test_sudo_object_maps() {
 fn test_sudo_btf_path() {
     // bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    print!("Terminating in 45 seconds ...");
-    std::thread::sleep(Duration::from_secs(45));
+    // let obj = get_test_object("runqslower.bpf.o");
+    // let mut btfpath = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    // btfpath.push("test/bin");
+    // btfpath.push("vmlinux");
+    // let obj = get_test_object_with_custom_btf("runqslower.bpf.o", &btfpath);
+    let btfpath = "/home/ericsu/src/github.com/libbpf-rs.externalbtf/libbpf-rs/tests/bin/vmlinux";
+    let obj = get_test_object_with_custom_btf("runqslower.bpf.o", btfpath);
+    println!("Terminating in 15 seconds ...");
+    std::thread::sleep(Duration::from_secs(15));
 }
 
 #[test]

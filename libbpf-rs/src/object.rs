@@ -7,6 +7,8 @@ use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
 
+use nix::NixPath;
+
 use crate::libbpf_sys;
 use crate::set_print;
 use crate::util;
@@ -147,9 +149,12 @@ impl ObjectBuilder {
 
     /// Specifies custom BTF path to handle cases where vmlinux is not available
     /// in target environment.
-    pub fn btf_path(&mut self, path: &str) -> &mut Self {
-        self.opts.btf_custom_path = CString::new(path).unwrap().into_raw();
-        self
+    pub fn btf_path<P: AsRef<Path>>(&mut self, path: P) -> Result<&mut Self> {
+        if !path.as_ref().is_empty() {
+            let path_c = util::path_to_cstring(path).unwrap();
+            self.opts.btf_custom_path = path_c.into_raw();
+        }
+        Ok(self)
     }
 }
 
@@ -158,6 +163,7 @@ impl Drop for ObjectBuilder {
         unsafe {
             if !self.opts.btf_custom_path.is_null() {
                 _ = CString::from_raw(self.opts.btf_custom_path as *mut std::os::raw::c_char);
+                self.opts.btf_custom_path = ptr::null();
             }
         }
     }
